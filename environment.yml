@@ -1,0 +1,15 @@
+name: CS5228
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python
+  - ipython
+  - jupyter
+  - jupyterlab_vim
+
+  - numpy
+  - pandas
+  - seaborn
+  - matplotlib
+  - scikit-learn
