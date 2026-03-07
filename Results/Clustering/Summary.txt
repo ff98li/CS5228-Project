@@ -1,0 +1,18 @@
+CLUSTERING ANALYSIS SUMMARY
+Dataset: churn-bigml-80.csv
+Features used: 12
+Samples: 2666
+
+KMeans: best k = 2
+Churn rates per cluster: {0: 0.437, 1: 0.1127}
+
+DBSCAN: eps = 4.3770, clusters = 1, noise = 2
+Churn rates per cluster: {0: 0.1453}
+
+GMM: best n_components = 3
+Churn rates per cluster: {0: 0.0547, 1: 0.1346, 2: 0.437}
+
+Metrics Comparison:
+KMeans: silhouette=0.2037, calinski=244.45, davies=1.9599
+DBSCAN: N/A (requires >= 2 clusters)
+GMM: silhouette=0.1137, calinski=239.59, davies=2.5455
