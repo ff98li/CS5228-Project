@@ -1,0 +1,18 @@
+flowchart LR
+    State --> Total_Day_Calls
+    State --> Total_Eve_Calls
+    State --> Total_Night_Calls
+    State --> Total_Day_Charge
+    State --> Total_Eve_Charge
+    State --> Total_Night_Charge
+    State ---> Account_Length
+
+    Total_Day_Calls --> Voice_Mail_Plan
+    Total_Day_Calls --> International_Plan
+    Total_Day_Charge ---> Churn
+
+    Total_Eve_Calls --> Voice_Mail_Plan
+    Total_Eve_Calls --> International_Plan
+    Total_Eve_Calls --> Churn
+
+    International_Plan --> Churn
