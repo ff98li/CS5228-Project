@@ -1,0 +1,16 @@
+feature_pair,mi_score
+International plan Total day charge,0.07467435799333444
+Total day charge Customer service calls,0.06618122057959241
+International plan Customer service calls,0.06617186125084085
+Number vmail messages Customer service calls,0.046620469020445254
+International plan Total intl calls,0.04628013360554828
+International plan Number vmail messages,0.04449865883380255
+Total intl calls Customer service calls,0.0405840590745139
+International plan Total intl charge,0.04030365138288294
+Area code Customer service calls,0.039290168963074246
+Total day charge State|PC1,0.03702212963308682
+Customer service calls State|PC1,0.03677795620570934
+Total day charge State|PC0,0.036657211045538096
+International plan State|PC0,0.03613023604619148
+Customer service calls State|PC0,0.035964706677301894
+Customer service calls State|PC2,0.035561807933983

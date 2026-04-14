@@ -1,0 +1,9 @@
+SVD SUMMARY
+Condition number: 1.1419
+Numerical rank: 16
+Top 5 singular values:
+  1: 55.1203
+  2: 54.0894
+  3: 53.5311
+  4: 53.4258
+  5: 52.7236
