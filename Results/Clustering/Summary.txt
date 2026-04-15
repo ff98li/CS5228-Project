@@ -6,13 +6,13 @@ Samples: 2666
 KMeans: best k = 2
 Churn rates per cluster: {0: 0.437, 1: 0.1127}
 
-DBSCAN: eps = 4.3770, clusters = 1, noise = 2
-Churn rates per cluster: {0: 0.1453}
+DBSCAN: eps=2.0, min_samples=5, clusters=6, noise=1079
+Churn rates per cluster: {0: 0.0894, 1: 0.6154, 2: 0.0, 3: 0.2222, 4: 1.0, 5: 0.0}
 
 GMM: best n_components = 3
 Churn rates per cluster: {0: 0.0547, 1: 0.1346, 2: 0.437}
 
 Metrics Comparison:
 KMeans: silhouette=0.2037, calinski=244.45, davies=1.9599
-DBSCAN: N/A (requires >= 2 clusters)
+DBSCAN: silhouette=-0.0190, calinski=10.35, davies=1.4001
 GMM: silhouette=0.1137, calinski=239.59, davies=2.5455
