@@ -1,4 +1,5 @@
 import re
+import copy
 import numpy
 import pandas
 
@@ -37,6 +38,12 @@ class DataMatrix:
             return tuple(self.m_values.shape)
         assert(0 <= axis < 2)
         return self.m_values.shape[axis]
+
+    def clone(self):
+        result = DataMatrix(None)
+        result.m_colums = copy.deepcopy(self.m_colums)
+        result.m_values = copy.deepcopy(self.m_values)
+        return result
 
     @staticmethod
     def createID(source: str) -> str:
