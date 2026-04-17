@@ -17,4 +17,4 @@ def computeKLDivergence(p: numpy.array, q: numpy.array) -> float:
 def computeJaccardIndex(p: numpy.array, q: numpy.array) -> float:
     I = numpy.sum(numpy.minimum(p, q))
     U = numpy.sum(numpy.maximum(p, q))
-    return I / U
+    return 1.0 - (I / U)

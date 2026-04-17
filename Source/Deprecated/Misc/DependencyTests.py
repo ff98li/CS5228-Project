@@ -10,9 +10,10 @@ from Utils.Preprocessor import StandardizeNode
 from Utils.Preprocessor import LabelEncoderNode
 from Utils.Preprocessor import TypeConvNode
 
-from Utils.DistribTools import DistribGenerator
-from Utils.DistribTools import computeCovariance
-from Utils.DistribTools import computeKLDivergence
+from Utils.DistribGenerator import DistribGenerator
+
+from Model.EvalMetrics import computeCovariance
+from Model.EvalMetrics import computeKLDivergence
 
 SEPARATOR = "=" * 60
 IN_PATH  = "./Data/churn-bigml-80.csv"
@@ -59,11 +60,11 @@ for i in range(len(normVars)):
     for j in range(i + 1, len(normVars)):
         x = normVars[i]
         y = normVars[j]
-        p = generator.getMarginal(dataset, x)
-        q = generator.getMarginal(dataset, y)
+        p, _ = generator.getMarginal(dataset, x)
+        q, _ = generator.getMarginal(dataset, y)
         cov = computeCovariance(p, q)
         print(f"{x}, {y} :: {cov}")
-        # distrib = generator.getJoint(dataset, [x, y])
+        # distrib, _ = generator.getJoint(dataset, [x, y])
         # pyplot.matshow(distrib, cmap = "hot")
         # pyplot.show()
 print(SEPARATOR)
@@ -72,11 +73,11 @@ print(SEPARATOR)
 
 def computeAvgDiv(x: str, y: str) -> float:
     idx = dataset.m_colums.index(y)
-    pX = generator.getMarginal(dataset, x)
+    pX, _ = generator.getMarginal(dataset, x)
     yVals = numpy.unique(dataset.m_values[:, idx])
     result = 0.0
     for val in yVals:
-        pXCY = generator.getConditional(dataset, x, {y: val})
+        pXCY, _ = generator.getConditional(dataset, x, {y: val})
         div = computeKLDivergence(pX, pXCY)
         result += div / len(yVals)
         # print(f"p({x}|{y} = {val})")
@@ -100,6 +101,6 @@ for i in range(len(catVars)):
         x = catVars[i]
         y = catVars[j]
         div = computeAvgDiv(x, y)
-        marker = "<<" if div >= 0.1 else ""
+        marker = "<<" if div >= 0.01 else ""
         print(f"{x}, {y} :: {div}", marker)
 print(SEPARATOR)
