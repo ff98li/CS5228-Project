@@ -6,8 +6,8 @@ from matplotlib import pyplot
 from sklearn.preprocessing import StandardScaler, PolynomialFeatures
 from sklearn.feature_selection import mutual_info_classif
 from sklearn.decomposition import KernelPCA
-from Encoder import VecEncoder, LabelEncoder
-from Filter import CorrFilter
+from Utils.Encoder import VecEncoder, LabelEncoder
+from Utils.Filter import CorrFilter
 
 ROOT_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IN_PATH     = os.path.join(ROOT_DIR, "Data", "churn-bigml-80.csv")

@@ -15,8 +15,8 @@ from sklearn.metrics import (accuracy_score, precision_score, recall_score,
 from sklearn.inspection import permutation_importance
 from xgboost import XGBClassifier
 from imblearn.over_sampling import SMOTE
-from Encoder import VecEncoder, LabelEncoder
-from Filter import CorrFilter
+from Utils.Encoder import VecEncoder, LabelEncoder
+from Utils.Filter import CorrFilter
 
 ROOT_DIR       = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRAIN_PATH     = os.path.join(ROOT_DIR, "Data", "churn-bigml-80.csv")
