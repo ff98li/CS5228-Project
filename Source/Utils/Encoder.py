@@ -1,4 +1,4 @@
-# DEPRECATED: Use transform nodes instead
+# DEPRECATED: Use transform layers instead
 
 from __future__ import annotations # to accomodate py version < 3.10
 from sklearn.decomposition import PCA

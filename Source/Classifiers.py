@@ -9,8 +9,8 @@ from sklearn.metrics import classification_report, confusion_matrix, roc_curve, 
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 
-from Encoder import LabelEncoder
-from Filter import CorrFilter
+from Utils.Encoder import LabelEncoder
+from Utils.Filter import CorrFilter
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_PATH = os.path.join(ROOT_DIR, "Results", "Classification")
@@ -19,7 +19,7 @@ IN_TEST = os.path.join(ROOT_DIR, "Data", "churn-bigml-20.csv")
 
 class Classifiers:
     x_train: numpy.ndarray
-    y_train: numpy.ndarray 
+    y_train: numpy.ndarray
     x_test: numpy.ndarray
     y_test: numpy.ndarray
 
@@ -74,7 +74,7 @@ class KNN(Classifiers):
             f1_scores_avg.append(report['macro avg']['f1-score'])
             f1_scores_c1.append(report['0']['f1-score'])
             f1_scores_c2.append(report['1']['f1-score'])
-        
+
         pyplot.figure()
         pyplot.ylim([0.0, 1.05])
         pyplot.xticks(fontsize=14)
@@ -156,7 +156,7 @@ if __name__ == "__main__":
     knn = KNN()
     # knn.evaluate(minN=2, maxN=5)
     knn.evaluate(nNeighbors=3)
-    
+
     # Logistic Regression
     lr = LR()
     lr.evaluate()

@@ -1,3 +1,5 @@
+# DEPRECATED: Use Graph.Preprocessor instead
+
 import numpy
 
 from Utils.DataMatrix import DataMatrix

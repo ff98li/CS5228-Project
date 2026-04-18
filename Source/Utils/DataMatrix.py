@@ -1,3 +1,5 @@
+# DEPRECATED: Use fallback to pandas.DataFrame
+
 import re
 import copy
 import numpy

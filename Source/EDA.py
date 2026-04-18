@@ -2,9 +2,9 @@ import pandas
 import seaborn
 from matplotlib import pyplot
 
-from Encoder import VecEncoder
-from Encoder import LabelEncoder
-from Filter import CorrFilter
+from Utils.Encoder import VecEncoder
+from Utils.Encoder import LabelEncoder
+from Utils.Filter import CorrFilter
 
 OUT_PATH = "./Results/EDA"
 IN_PATH  = "./Data/churn-bigml-80.csv"
