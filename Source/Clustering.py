@@ -223,16 +223,56 @@ class ClusterProfiler:
         summary = frame.groupby("Cluster").mean()
         return summary
 
-    def plotChurnRate(self, labels: numpy.ndarray, name: str, path: str) -> None:
+    def plotChurnRate(self, labels: numpy.ndarray, name: str, path: str,
+                      highlightClusters: dict = None) -> None:
         frame = pandas.DataFrame({"Cluster": labels, "Churn": self.m_churn.values})
         frame = frame[frame["Cluster"] != -1]
-        rates = frame.groupby("Cluster")["Churn"].mean()
-        pyplot.figure()
+        rates = frame.groupby("Cluster")["Churn"].mean().sort_values()
+        sizes = frame.groupby("Cluster")["Churn"].count()[rates.index]
+
+        cmap = pyplot.cm.get_cmap("tab10")
+        # Skip tab10 index 3 (red) so highlight colour stays unique
+        nonRedIndices = [0, 1, 2, 4, 5, 6, 7, 8, 9]
+        colours = [cmap(nonRedIndices[i % len(nonRedIndices)]) for i in range(len(rates))]
+        if highlightClusters:
+            for i, clusterId in enumerate(rates.index):
+                if clusterId in highlightClusters:
+                    colours[i] = "#d32f2f"
+
+        figWidth = max(6, len(rates) * 1.4)
+        pyplot.figure(figsize = (figWidth, 5))
         pyplot.title(f"Churn Rate per Cluster ({name})")
         pyplot.xlabel("Cluster")
         pyplot.ylabel("Churn Rate")
-        pyplot.bar(x = [str(c) for c in rates.index], height = rates.values)
-        pyplot.savefig(path, dpi=600, bbox_inches="tight")
+
+        yTop = rates.max() * 1.25 if highlightClusters else rates.max() * 1.18
+        pyplot.ylim(0, yTop)
+
+        bars = pyplot.bar(x = [str(c) for c in rates.index], height = rates.values,
+                          color = colours)
+
+        # Annotate each bar: churn rate + sample count
+        for bar, val, n in zip(bars, rates.values, sizes.values):
+            pyplot.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + yTop * 0.02,
+                f"{val:.1%}\nn={n}",
+                ha = "center", va = "bottom", fontsize = 9, fontweight = "bold"
+            )
+
+        if highlightClusters:
+            for bar, clusterId in zip(bars, rates.index):
+                if clusterId in highlightClusters:
+                    pyplot.text(
+                        bar.get_x() + bar.get_width() / 2,
+                        bar.get_height() + yTop * 0.10,
+                        highlightClusters[clusterId],
+                        ha = "center", va = "bottom", fontsize = 8,
+                        color = "#d32f2f", fontweight = "bold"
+                    )
+
+        pyplot.tight_layout()
+        pyplot.savefig(path, dpi = 600, bbox_inches = "tight")
         pyplot.close()
 
     def plotProfileHeatmap(self, labels: numpy.ndarray, name: str, path: str) -> None:
@@ -274,16 +314,43 @@ def computeMetrics(data: numpy.ndarray, labels: numpy.ndarray) -> dict:
 
 
 def plotMetricsComparison(allMetrics: dict, path: str) -> None:
+    import math
     methods = list(allMetrics.keys())
-    metricNames = ["silhouette", "calinski", "davies"]
-    fig, axes = pyplot.subplots(1, 3, figsize = (15, 5))
-    for idx, metric in enumerate(metricNames):
-        values = [allMetrics[m][metric] for m in methods]
-        axes[idx].bar(methods, values)
-        axes[idx].set_title(metric.capitalize())
-        axes[idx].set_ylabel(metric)
+    values = [allMetrics[m]["silhouette"] for m in methods]
+    colours = ["#1976d2", "#d32f2f", "#388e3c"]  # blue, red, green
+
+    # Wrap long labels with newlines for readability
+    wrappedLabels = [m.replace(", ", ",\n") for m in methods]
+
+    yMin = min(v for v in values if not math.isnan(v))
+    yMax = max(v for v in values if not math.isnan(v))
+    # Extend y-axis to show negative bars; add padding above and below
+    padding = (yMax - yMin) * 0.3 if yMax != yMin else 0.05
+    ylimBottom = min(yMin - padding, -0.05)
+    ylimTop = yMax + padding
+
+    pyplot.figure(figsize = (8, 5))
+    bars = pyplot.bar(wrappedLabels, values, color = colours, width = 0.5)
+    pyplot.axhline(y = 0, color = "black", linewidth = 0.8, linestyle = "-")
+    pyplot.title("Clustering Quality: Silhouette Score Comparison")
+    pyplot.ylabel("Silhouette Score")
+    pyplot.ylim(ylimBottom, ylimTop)
+
+    # Annotate each bar: positive bars → label above bar; negative bars → label below bar
+    for bar, val in zip(bars, values):
+        if math.isnan(val):
+            continue
+        xPos = bar.get_x() + bar.get_width() / 2
+        if val >= 0:
+            yPos = bar.get_height() + (ylimTop - ylimBottom) * 0.02
+            va = "bottom"
+        else:
+            yPos = bar.get_height() - (ylimTop - ylimBottom) * 0.04
+            va = "top"
+        pyplot.text(xPos, yPos, f"{val:.3f}", ha = "center", va = va, fontsize = 10)
+
     pyplot.tight_layout()
-    pyplot.savefig(path, dpi=600, bbox_inches="tight")
+    pyplot.savefig(path, dpi = 600, bbox_inches = "tight")
     pyplot.close()
 
 
@@ -371,7 +438,8 @@ if __name__ == "__main__":
     profiler = ClusterProfiler(dataset, churn)
 
     profiler.plotChurnRate(kmLabels, "KMeans", f"{OUT_PATH}/ClusterProfiles_KMeans.png")
-    profiler.plotChurnRate(dbLabels, "DBSCAN", f"{OUT_PATH}/ClusterProfiles_DBSCAN.png")
+    profiler.plotChurnRate(dbLabels, "DBSCAN", f"{OUT_PATH}/ClusterProfiles_DBSCAN.png",
+                           highlightClusters = {4: "Silent\nChurners"})
     profiler.plotChurnRate(gmmLabels, "GMM", f"{OUT_PATH}/ClusterProfiles_GMM.png")
 
     # Cluster profile heatmaps
@@ -390,10 +458,11 @@ if __name__ == "__main__":
     plotFeatureScatter(dataset, gmmLabels, "GMM", f"{OUT_PATH}/FeatureScatter_GMM.png")
 
     # metrics comparison
+    nDbClusters = len(set(dbLabels)) - (1 if -1 in dbLabels else 0)
     allMetrics = {
-        "KMeans": computeMetrics(scaled, kmLabels),
-        "DBSCAN": computeMetrics(scaled, dbLabels),
-        "GMM": computeMetrics(scaled, gmmLabels),
+        f"K-Means (k={kmeans.m_bestK})": computeMetrics(scaled, kmLabels),
+        f"DBSCAN (eps={dbscan.m_bestEps}, {nDbClusters} clusters)": computeMetrics(scaled, dbLabels),
+        f"GMM ({gmm.m_bestK} components)": computeMetrics(scaled, gmmLabels),
     }
     plotMetricsComparison(allMetrics, f"{OUT_PATH}/Metrics_Comparison.png")
 

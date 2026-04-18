@@ -11,7 +11,7 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.metrics import (accuracy_score, precision_score, recall_score,
                               f1_score, roc_auc_score, confusion_matrix,
-                              RocCurveDisplay)
+                              RocCurveDisplay, precision_recall_curve)
 from sklearn.inspection import permutation_importance
 from xgboost import XGBClassifier
 from imblearn.over_sampling import SMOTE
@@ -27,6 +27,15 @@ FEATURES_10 = [
     "International plan", "Number vmail messages", "Total day charge",
     "Total eve calls", "Total intl calls", "Total intl charge",
     "Customer service calls", "State|PC0", "State|PC1", "State|PC2",
+]
+
+FEATURES_6 = [
+    "Total day charge",
+    "Customer service calls",
+    "International plan",
+    "Number vmail messages",
+    "Total intl charge",
+    "Total intl calls",
 ]
 
 DROP_FEATURES = [
@@ -292,6 +301,241 @@ class _EnsembleWrapper:
         return (proba[:, 1] >= 0.5).astype(int)
 
 
+class ThresholdAnalyzer:
+    """Sweep decision thresholds for a binary classifier, find optimal points."""
+
+    def __init__(self, model, X_test, y_test) -> None:
+        self.m_model = model
+        self.m_X_test = X_test
+        self.m_y_test = y_test
+        self.m_y_proba = None
+        self.m_thresholds = None
+        self.m_precisions = None
+        self.m_recalls = None
+        self.m_f1s = None
+
+    def __call__(self, out_path: str) -> None:
+        self.m_y_proba = self.m_model.predict_proba(self.m_X_test)[:, 1]
+        auc = roc_auc_score(self.m_y_test, self.m_y_proba)
+
+        # Sweep thresholds 0.05 to 0.95 step 0.05
+        thresholds = numpy.arange(0.05, 1.0, 0.05)
+        precs, recs, f1s = [], [], []
+        for t in thresholds:
+            preds = (self.m_y_proba >= t).astype(int)
+            precs.append(precision_score(self.m_y_test, preds, zero_division = 0.0))
+            recs.append(recall_score(self.m_y_test, preds, zero_division = 0.0))
+            f1s.append(f1_score(self.m_y_test, preds, zero_division = 0.0))
+
+        self.m_thresholds = thresholds
+        self.m_precisions = numpy.array(precs)
+        self.m_recalls = numpy.array(recs)
+        self.m_f1s = numpy.array(f1s)
+
+        # Find F1-max
+        idxF1max = numpy.argmax(self.m_f1s)
+        tF1max = thresholds[idxF1max]
+
+        # Find Recall-75: lowest threshold where recall >= 0.75
+        # Lower threshold -> higher recall, so first threshold (leftmost) that meets it
+        recall75Mask = self.m_recalls >= 0.75
+        if recall75Mask.any():
+            idxR75 = numpy.where(recall75Mask)[0][0]
+        else:
+            idxR75 = None
+
+        # Print results
+        print(f"\nThreshold Sweep Results:")
+        print(f"  F1-max: threshold={tF1max:.2f}, "
+              f"precision={self.m_precisions[idxF1max]:.4f}, "
+              f"recall={self.m_recalls[idxF1max]:.4f}, "
+              f"F1={self.m_f1s[idxF1max]:.4f}")
+        if idxR75 is not None:
+            tR75 = thresholds[idxR75]
+            print(f"  Recall-75: threshold={tR75:.2f}, "
+                  f"precision={self.m_precisions[idxR75]:.4f}, "
+                  f"recall={self.m_recalls[idxR75]:.4f}, "
+                  f"F1={self.m_f1s[idxR75]:.4f}")
+
+        # Plot 1: Threshold sweep
+        self._plotSweep(out_path, idxF1max, idxR75)
+
+        # Plot 2: PR curve
+        self._plotPRCurve(out_path, auc, tF1max, idxR75)
+
+        # Save thresholds CSV
+        self._saveCSV(out_path, auc, idxF1max, idxR75)
+
+    def _plotSweep(self, out_path, idxF1max, idxR75):
+        pyplot.figure(figsize = (10, 6))
+        pyplot.plot(self.m_thresholds, self.m_precisions, label = "Precision", color = "#1976d2")
+        pyplot.plot(self.m_thresholds, self.m_recalls, label = "Recall", color = "#388e3c")
+        pyplot.plot(self.m_thresholds, self.m_f1s, label = "F1", color = "#d32f2f")
+        pyplot.axvline(x = self.m_thresholds[idxF1max], color = "#d32f2f", linestyle = "--",
+                       label = f"F1-max (t={self.m_thresholds[idxF1max]:.2f})")
+        if idxR75 is not None:
+            pyplot.axvline(x = self.m_thresholds[idxR75], color = "#388e3c", linestyle = "--",
+                           label = f"Recall-75 (t={self.m_thresholds[idxR75]:.2f})")
+        pyplot.xlabel("Threshold")
+        pyplot.ylabel("Score")
+        pyplot.title("RF-D: Precision/Recall/F1 vs Threshold")
+        pyplot.legend()
+        pyplot.tight_layout()
+        pyplot.savefig(os.path.join(out_path, "threshold_sweep.png"), dpi = 600, bbox_inches = "tight")
+        pyplot.close()
+
+    def _plotPRCurve(self, out_path, auc, tF1max, idxR75):
+        precVals, recVals, thrVals = precision_recall_curve(self.m_y_test, self.m_y_proba)
+        pyplot.figure(figsize = (8, 6))
+        pyplot.plot(recVals, precVals, label = f"PR curve (AUC={auc:.3f})")
+        # Default point (threshold ~0.5)
+        defaultIdx = numpy.argmin(numpy.abs(thrVals - 0.5))
+        pyplot.plot(recVals[defaultIdx], precVals[defaultIdx], "ko",
+                    label = "Default (t~0.5)")
+        # F1-max point
+        f1maxThrIdx = numpy.argmin(numpy.abs(thrVals - tF1max))
+        pyplot.plot(recVals[f1maxThrIdx], precVals[f1maxThrIdx], "r^",
+                    label = f"F1-max (t={tF1max:.2f})")
+        if idxR75 is not None:
+            r75Thr = self.m_thresholds[idxR75]
+            r75Idx = numpy.argmin(numpy.abs(thrVals - r75Thr))
+            pyplot.plot(recVals[r75Idx], precVals[r75Idx], "gs",
+                        label = f"Recall-75 (t={r75Thr:.2f})")
+        pyplot.xlabel("Recall")
+        pyplot.ylabel("Precision")
+        pyplot.title("RF-D: Precision-Recall Curve")
+        pyplot.legend()
+        pyplot.tight_layout()
+        pyplot.savefig(os.path.join(out_path, "pr_curve.png"), dpi = 600, bbox_inches = "tight")
+        pyplot.close()
+
+    def _saveCSV(self, out_path, auc, idxF1max, idxR75):
+        rows = []
+        # Default (threshold 0.5)
+        defaultIdx = numpy.argmin(numpy.abs(self.m_thresholds - 0.5))
+        rows.append({
+            "operating_point": "Default (0.5)",
+            "threshold": self.m_thresholds[defaultIdx],
+            "precision": self.m_precisions[defaultIdx],
+            "recall": self.m_recalls[defaultIdx],
+            "f1": self.m_f1s[defaultIdx],
+            "auc": auc,
+        })
+        # F1-max
+        rows.append({
+            "operating_point": "F1-max",
+            "threshold": self.m_thresholds[idxF1max],
+            "precision": self.m_precisions[idxF1max],
+            "recall": self.m_recalls[idxF1max],
+            "f1": self.m_f1s[idxF1max],
+            "auc": auc,
+        })
+        # Recall-75
+        if idxR75 is not None:
+            rows.append({
+                "operating_point": "Recall-75",
+                "threshold": self.m_thresholds[idxR75],
+                "precision": self.m_precisions[idxR75],
+                "recall": self.m_recalls[idxR75],
+                "f1": self.m_f1s[idxR75],
+                "auc": auc,
+            })
+        df = pandas.DataFrame(rows)
+        df.to_csv(os.path.join(out_path, "results_table_thresholds.csv"), index = False)
+        print(f"Threshold results saved to {out_path}/results_table_thresholds.csv")
+
+
+class SixFeatureRunner:
+    """Run RF-D on the 6-feature subset and compare with 10-feature baseline."""
+
+    def __init__(self) -> None:
+        pass
+
+    def __call__(self, loader, tuner, factory, ablation) -> None:
+        # Re-load data using the same DataLoader (already fit on train)
+        X_train_raw, y_train, X_test_raw, y_test = loader()
+
+        # Select 6 features only
+        X_train_6 = X_train_raw[FEATURES_6]
+        X_test_6 = X_test_raw[FEATURES_6]
+
+        print(f"\n6-feature set: {FEATURES_6}")
+        print(f"6-feature train shape: {X_train_6.shape}, test shape: {X_test_6.shape}")
+
+        # Preprocess (RF: no scaling, just values)
+        preproc6 = Preprocessor()
+        X_train_6_proc = preproc6.fitTransform(X_train_6, isLR = False)
+        X_test_6_proc = preproc6.transform(X_test_6, isLR = False)
+
+        # Tune RF on 6 features
+        print("\nTuning RF on 6 features...")
+        tunedRF6 = tuner("RF", factory("RF"), X_train_6_proc, y_train)
+
+        # Fit condition D (calibrated 3-seed ensemble)
+        print("Fitting RF/D-6feat...")
+        model6 = ablation._fitConditionDEnsemble(tunedRF6, "RF", X_train_6_proc, y_train)
+
+        # Evaluate
+        y_pred = model6.predict(X_test_6_proc)
+        y_proba = model6.predict_proba(X_test_6_proc)[:, 1]
+
+        acc = accuracy_score(y_test, y_pred)
+        prec = precision_score(y_test, y_pred, pos_label = 1, zero_division = 0)
+        rec = recall_score(y_test, y_pred, pos_label = 1, zero_division = 0)
+        f1 = f1_score(y_test, y_pred, pos_label = 1, zero_division = 0)
+        auc = roc_auc_score(y_test, y_proba)
+
+        print(f"\n  RF/D-6feat: acc={acc:.4f}, prec={prec:.4f}, rec={rec:.4f}, "
+              f"f1={f1:.4f}, auc={auc:.4f}")
+
+        # Save confusion matrix
+        cm = confusion_matrix(y_test, y_pred)
+        self._plotConfusionMatrix(cm)
+
+        # Append to results_table.csv
+        resultRow = {"model": "RF", "condition": "D-6feat",
+                     "accuracy": acc, "precision": prec, "recall": rec,
+                     "f1": f1, "auc_roc": auc}
+        resultsPath = os.path.join(OUT_PATH, "results_table.csv")
+        resultsDf = pandas.read_csv(resultsPath)
+        resultsDf = pandas.concat([resultsDf, pandas.DataFrame([resultRow])], ignore_index = True)
+        resultsDf.to_csv(resultsPath, index = False)
+        print(f"Appended RF/D-6feat to {resultsPath}")
+
+        # Print comparison
+        tenFeatRow = resultsDf[(resultsDf["model"] == "RF") & (resultsDf["condition"] == "D")]
+        if len(tenFeatRow) > 0:
+            tenF1 = tenFeatRow["f1"].values[0]
+            tenAuc = tenFeatRow["auc_roc"].values[0]
+            tenPrec = tenFeatRow["precision"].values[0]
+            tenRec = tenFeatRow["recall"].values[0]
+            print(f"\n  Comparison: 10-feat RF-D (F1={tenF1:.4f}, AUC={tenAuc:.4f}, "
+                  f"prec={tenPrec:.4f}, rec={tenRec:.4f})")
+            print(f"               6-feat  RF-D (F1={f1:.4f}, AUC={auc:.4f}, "
+                  f"prec={prec:.4f}, rec={rec:.4f})")
+            deltaF1 = f1 - tenF1
+            print(f"               F1 delta: {deltaF1:+.4f}")
+
+    def _plotConfusionMatrix(self, cm):
+        path = os.path.join(OUT_PATH, "confusion_matrix_RF_D_6feat.png")
+        pyplot.figure()
+        pyplot.imshow(cm, interpolation = "nearest", cmap = pyplot.cm.Blues)
+        pyplot.title("Confusion Matrix: RF / D-6feat")
+        pyplot.colorbar()
+        tickMarks = [0, 1]
+        pyplot.xticks(tickMarks, ["No Churn", "Churn"])
+        pyplot.yticks(tickMarks, ["No Churn", "Churn"])
+        for i in range(2):
+            for j in range(2):
+                pyplot.text(j, i, format(cm[i, j], "d"),
+                            horizontalalignment = "center",
+                            color = "white" if cm[i, j] > cm.max() / 2 else "black")
+        pyplot.ylabel("True label")
+        pyplot.xlabel("Predicted label")
+        pyplot.savefig(path, dpi = 600, bbox_inches = "tight")
+        pyplot.close()
+
+
 class Evaluator:
     def __init__(self) -> None:
         self.m_results = []
@@ -521,6 +765,29 @@ if __name__ == "__main__":
     permAnalyzer = PermutationImportanceAnalyzer()
     permAnalyzer(bestModel, X_test_proc, y_test, featureNames)
     permAnalyzer.plotBar(os.path.join(OUT_PATH, "permutation_importance.png"))
+
+    # Save permutation importance as CSV
+    permDf = pandas.DataFrame({
+        "feature": featureNames,
+        "importance_mean": permAnalyzer.m_result.importances_mean,
+        "importance_std": permAnalyzer.m_result.importances_std,
+    }).sort_values("importance_mean", ascending=False)
+    permDf.to_csv(os.path.join(OUT_PATH, "permutation_importance.csv"), index=False)
+    print("\nPermutation importance CSV saved.")
+
+    # --- Threshold sweep for best model (RF-D) ---
+    import shutil
+    shutil.copy2(
+        os.path.join(OUT_PATH, "results_table.csv"),
+        os.path.join(OUT_PATH, "results_table_before_threshold.csv"))
+    print("Backup saved: results_table_before_threshold.csv")
+
+    threshAnalyzer = ThresholdAnalyzer(bestModel, X_test_proc, y_test)
+    threshAnalyzer(OUT_PATH)
+
+    # --- 6-feature RF-D comparison ---
+    sixFeatRunner = SixFeatureRunner()
+    sixFeatRunner(loader, tuner, factory, ablation)
 
     print("\nTop 10 Permutation Importances:")
     importances = permAnalyzer.m_result.importances_mean

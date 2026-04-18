@@ -13,6 +13,6 @@ GMM: best n_components = 3
 Churn rates per cluster: {0: 0.0547, 1: 0.1346, 2: 0.437}
 
 Metrics Comparison:
-KMeans: silhouette=0.2037, calinski=244.45, davies=1.9599
-DBSCAN: silhouette=-0.0190, calinski=10.35, davies=1.4001
-GMM: silhouette=0.1137, calinski=239.59, davies=2.5455
+K-Means (k=2): silhouette=0.2037, calinski=244.45, davies=1.9599
+DBSCAN (eps=2.0, 6 clusters): silhouette=-0.0190, calinski=10.35, davies=1.4001
+GMM (3 components): silhouette=0.1137, calinski=239.59, davies=2.5455

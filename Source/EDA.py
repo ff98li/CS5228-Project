@@ -1,3 +1,4 @@
+import os
 import pandas
 import seaborn
 from matplotlib import pyplot
@@ -6,18 +7,35 @@ from Encoder import VecEncoder
 from Encoder import LabelEncoder
 from Filter import CorrFilter
 
-OUT_PATH = "./Results/EDA"
-IN_PATH  = "./Data/churn-bigml-80.csv"
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT_PATH = os.path.join(ROOT_DIR, "Results", "EDA")
+IN_PATH  = os.path.join(ROOT_DIR, "Data", "churn-bigml-80.csv")
+os.makedirs(OUT_PATH, exist_ok = True)
 dataset = pandas.read_csv(IN_PATH)
 
 # NOTE: Label distribution
 labels = dataset["Churn"]
-x = ["True", "False"]
-y = [labels.sum(), len(labels) - labels.sum()]
-print("Label Ratio:", y[0] / y[1])
-pyplot.title("Label distribution")
-pyplot.bar(x = x, height = y)
-pyplot.savefig(f"{OUT_PATH}/LabelDistrib.png")
+nChurn    = int(labels.sum())
+nNoChurn  = len(labels) - nChurn
+x = ["Churn", "No Churn"]
+y = [nChurn, nNoChurn]
+print("Label Ratio:", nNoChurn / nChurn)
+colours = ["#d32f2f", "#1976d2"]
+fig, ax = pyplot.subplots(figsize = (7, 4))
+bars = ax.bar(x = x, height = y, color = colours, width = 0.5)
+for bar, val in zip(bars, y):
+    pct = val / len(labels)
+    ax.text(bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + max(y) * 0.02,
+            f"{val}\n({pct:.1%})",
+            ha = "center", va = "bottom", fontsize = 10, fontweight = "bold")
+ax.set_title("Class Distribution", fontsize = 12, fontweight = "bold")
+ax.set_ylabel("Number of Customers")
+ax.set_ylim(0, max(y) * 1.20)
+ax.spines["top"].set_visible(False)
+ax.spines["right"].set_visible(False)
+pyplot.tight_layout()
+pyplot.savefig(f"{OUT_PATH}/LabelDistrib.png", dpi = 600, bbox_inches = "tight")
 pyplot.close()
 
 # NOTE: Encoding / Filtering
