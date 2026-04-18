@@ -11,8 +11,8 @@ from sklearn.metrics import silhouette_score
 from sklearn.metrics import calinski_harabasz_score
 from sklearn.metrics import davies_bouldin_score
 
-from Encoder import LabelEncoder
-from Filter import CorrFilter
+from Utils.Encoder import LabelEncoder
+from Utils.Filter import CorrFilter
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_PATH = os.path.join(ROOT_DIR, "Results", "Clustering")
@@ -508,7 +508,7 @@ if __name__ == "__main__":
             lines.append(f"{method}: silhouette={s:.4f}, "
                           f"calinski={c:.2f}, "
                           f"davies={d:.4f}")
-    
+
     summary = "\n".join(lines)
     print(summary)
     with open(f"{OUT_PATH}/Summary.txt", "w") as f:

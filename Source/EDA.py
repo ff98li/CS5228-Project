@@ -3,9 +3,9 @@ import pandas
 import seaborn
 from matplotlib import pyplot
 
-from Encoder import VecEncoder
-from Encoder import LabelEncoder
-from Filter import CorrFilter
+from Utils.Encoder import VecEncoder
+from Utils.Encoder import LabelEncoder
+from Utils.Filter import CorrFilter
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_PATH = os.path.join(ROOT_DIR, "Results", "EDA")
